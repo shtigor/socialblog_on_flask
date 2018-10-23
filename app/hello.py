@@ -6,6 +6,8 @@ from flask_wtf import FlaskForm
 from wtforms import StringField, SubmitField
 from wtforms.validators import DataRequired
 from flask_sqlalchemy import SQLAlchemy
+from flask_migrate import Migrate, MigrateCommand
+from flask_script import Manager, Shell
 
 
 import os
@@ -20,7 +22,15 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = True
 
 bootstrap = Bootstrap(app)
 moment = Moment(app)
+manager = Manager(app)
 db = SQLAlchemy(app)
+migrate = Migrate(app, db)
+manager.add_command('db', MigrateCommand)
+
+def make_shell_context():
+    return dict(app=app, db=db, User=User, Role=Role)
+manager.add_command('shell', Shell(make_context=make_shell_context))
+
 
 @app.route('/', methods=['GET', 'POST'])
 def index():
@@ -53,11 +63,6 @@ def page_not_found(e):
 def internal_server_error(e):
     return render_template('500.html'), 500
 
-@app.shell_context_processor
-def make_shell_context():
-    return {'db': db, 'User': User, 'Role': Role}
-    
-
 # WEB FORMS
 class NameForm(FlaskForm):
     name = StringField('What is your name?', validators=[DataRequired()])
@@ -77,7 +82,7 @@ class Role(db.Model):
 class User(db.Model):
     __tablename__ = 'users'
     id = db.Column(db.Integer, primary_key=True)
-    username = db.Column(db.String(64), unique=True, index=True)
+    username = db.Column(db.String(130), unique=True, index=True)
     role_id = db.Column(db.Integer, db.ForeignKey('roles.id'))
 
     def __repr__(self):
@@ -86,3 +91,4 @@ class User(db.Model):
 
 if __name__ == '__main__':
     app.run(debug=True)
+    manager.run()
